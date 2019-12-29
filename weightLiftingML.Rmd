@@ -48,6 +48,10 @@ featurePlot(buildX1,y=buildY,plot="pairs")
 
 The data is normalized for uniformity before using different methods for analysis. Since the feature creation is computationally intensive and require knowledge of the subjet, I did not create any features here. Since all predictors seems to be continuous variables, no dummy variables are created here. Also observed no zero covariates here.
 
+### Cross Validation
+
+As the size of the data is big enough, a K-fold cross validation is planned with a K value of 2. This means the Build set is divided into Training set and Testing set (split equally).
+
 ```{r preProcess}
 preObj <- preProcess(x=buildX,method=c("center","scale"))
 buildX1 <- as.data.frame(predict(preObj,buildX))
@@ -61,6 +65,8 @@ testX2 <- cbind(buildX1[-sampTrain,],classe=buildY[-sampTrain])
 testX3 <- cbind(buildX1[-sampTrain,colNames3],classe=buildY[-sampTrain])
 validX3 <- validX1[,colNames3]
 ```
+
+
 
 ## Developing ML model
 
@@ -84,6 +90,18 @@ end_time <-Sys.time()
 end_time - start_time
 ```
 
+```{r inSampleAccuracy}
+
+modRFs$results
+modGBMs$results
+modNBs$results
+
+```
+
+Accuracy of Random Forests and Boosting methods seems to be very good and the ensembling method with majority voting may replace Random Forests in case it does not agree with majority vote. Though the accuracy of Combined model (Model Ensembling) may be similar to that of Random Forests(0.98), it is expected to be a superior method for new data.
+
+We expect the accuracy levels to hold up against cross validation set and expecting around 0.98 accuracy for combined model.
+
 ```{r predicting}
 predRFs <- predict(modRFs,testX3)
 predGBMs <-predict(modGBMs,testX3)
@@ -95,7 +113,8 @@ mean(predRFs == testX3$classe)
  
 ```
 
-Accuracy of Random Forests and Boosting methods seems to be very good and the ensembling method with majority voting may replace Random Forests in case it does not agree with majority vote.
+The out of sample accuracy of Random Forests and Boosting methods are good because they have cross validation in their evaluation.
+
 ```{r ensembling}
 predCombs <-predRFs
 predCombs[predGBMs == predNBs] <- predGBMs[predGBMs == predNBs]
@@ -104,7 +123,7 @@ mean(predCombs==testX3$classe)
 
 ```
  
- Though the accuracy of Combined model (Model Ensembling) seems to be similar to that of Random Forests(0.98), it is expected to be a superior method for new data.
+ Though the accuracy of Combined model (Model Ensembling) seems to be less to that of Random Forests(0.98), it is robust and gives consistent results and is the chosen model.
 
 ## Applying the ML model to Test Validation Data
 
