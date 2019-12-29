@@ -1,0 +1,125 @@
+---
+title: "Weight Lifting Activity Machine Learning"
+author: "Ravi Addanki"
+date: "12/28/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,cache=TRUE)
+library(ISLR);library(kernlab);library(caret);library(ggplot2)
+```
+
+
+## Overview
+
+   The purpose of this document is to generate a machine learning algorithm that predicts if the Weight Lifting Excercises are done correctly provided certain body movement measurements are collected through sensors. For this a collection of weightlifting samples of measurements was used from the groupware website <http://groupware.les.inf.puc-rio.br/har>. This data was classified by trainers using the variable classe. According to the final ML algorithm developed, the weight lifting excercises were performed pefectly (classe=A) in 7 out of 20 test cases (validation cases) while 8 others were good enough (Classe=B). 
+   
+## Data set
+
+The training and testing datasets are obtained from specified sources. Per documentation the variables of interest are raw accelerometer, gyroscope and magnetometer readings and Euler angles roll, pitch, and yaw. There seems to be no missing data.
+
+```{r  readDataset}
+buildFile <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+validFile <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+if (!file.exists("data/buildData.csv")) download.file(buildFile,method="curl",destfile= "data/buildData.csv")
+if (!file.exists("data/validData.csv")) download.file(validFile,method="curl",destfile= "data/validData.csv")
+buildData <-read.csv("data/buildData.csv")
+validData <-read.csv("data/validData.csv")
+colNames1 <-colnames(buildData)
+colNames2 <- colNames1[grep("^accel_|^gyros_|^magnet_|^pitch_|^roll_|^yaw_",colNames1)]
+colNames3 <- colNames2[grep("^pitch_|^roll_|^yaw_",colNames2)]
+buildX <- buildData[,colNames2];validX <- validData[,colNames2];buildY <-buildData$classe
+table(complete.cases(buildX))
+table(complete.cases(validX))
+```
+
+## Data Exploration
+
+Data exploration did not reveal any obvious trends.
+
+```{r exploreData1}
+buildX1 <- buildX[,grep("^pitch_|^roll_|^yaw_",colNames2)]
+featurePlot(buildX1,y=buildY,plot="pairs")
+
+```
+
+## Preprocesing and Covariate Creation 
+
+The data is normalized for uniformity before using different methods for analysis. Since the feature creation is computationally intensive and require knowledge of the subjet, I did not create any features here. Since all predictors seems to be continuous variables, no dummy variables are created here. Also observed no zero covariates here.
+
+```{r preProcess}
+preObj <- preProcess(x=buildX,method=c("center","scale"))
+buildX1 <- as.data.frame(predict(preObj,buildX))
+validX1 <- as.data.frame(predict(preObj,validX))
+nzvbuild <- nearZeroVar(buildX1,saveMetrics = TRUE)
+set.seed(2019-12-29)
+sampTrain <- createDataPartition(y=buildY,p=.5,list=F)
+trainX2 <- cbind(buildX1[sampTrain,],classe=buildY[sampTrain])
+trainX3 <- cbind(buildX1[sampTrain,colNames3],classe=buildY[sampTrain])
+testX2 <- cbind(buildX1[-sampTrain,],classe=buildY[-sampTrain])
+testX3 <- cbind(buildX1[-sampTrain,colNames3],classe=buildY[-sampTrain])
+validX3 <- validX1[,colNames3]
+```
+
+## Developing ML model
+
+Since target variable is a factor variable, we need to use classification to solve the clustering problem. Random Forests , boosting, Naive Bayes are explored here. Considering all the variables was time consuming and was better than just running only the euler variables (roll,pitch, and yaw). The accuracy of Random Forests was same (0.983) in both cases while gbm accuracy varied (0.96 vs 0.93). Due to time constraints for reproducing this document, only the code for ML model based on features is presented here (just substitute trainX2 in place of trainX3 if you want all variables to be considered).
+
+```{r modeling}
+
+  
+  set.seed(2019-12-29)
+start_time <- Sys.time()
+modRFs <-train(classe~.,method="rf",data=trainX3,trControl=trainControl(method="cv",allowParallel=TRUE),number=3)
+end_time <-Sys.time()
+end_time - start_time
+start_time <- Sys.time()
+modGBMs <-train(classe~.,method="gbm",data=trainX3,trControl=trainControl(method="cv",allowParallel=TRUE),verbose=FALSE)
+end_time <-Sys.time()
+end_time - start_time
+start_time <- Sys.time()
+suppressWarnings(modNBs <-train(classe~.,method="nb",data=trainX3))
+end_time <-Sys.time()
+end_time - start_time
+```
+
+```{r predicting}
+predRFs <- predict(modRFs,testX3)
+predGBMs <-predict(modGBMs,testX3)
+suppressWarnings(predNBs <-predict(modNBs,testX3))
+mean(predRFs == testX3$classe)
+ mean(predGBMs == testX3$classe)
+  mean(predNBs == testX3$classe)
+
+ 
+```
+
+Accuracy of Random Forests and Boosting methods seems to be very good and the ensembling method with majority voting may replace Random Forests in case it does not agree with majority vote.
+```{r ensembling}
+predCombs <-predRFs
+predCombs[predGBMs == predNBs] <- predGBMs[predGBMs == predNBs]
+mean(predCombs==testX3$classe)
+
+
+```
+ 
+ Though the accuracy of Combined model (Model Ensembling) seems to be similar to that of Random Forests(0.98), it is expected to be a superior method for new data.
+
+## Applying the ML model to Test Validation Data
+
+The combined model is applied to validation data to predict the results of new data.
+
+```{r validation}
+predRF_Vals <- predict(modRFs,validX3)
+predGBM_vals <-predict(modGBMs,validX3)
+predNB_Vals <-predict(modNBs,validX3)
+predComb_Vals <- predRF_Vals
+predComb_Vals[predGBM_vals == predNB_Vals ] = predGBM_vals[predGBM_vals == predNB_Vals ]
+table(predComb_Vals)
+```
+
+## Conclusion
+
+According to the final ML algorithm developed, the weight lifting excercises were performed pefectly (classe=A) in 7 out of 20 test cases (validation cases) while 8 others were good enough (Classe=B). 
+
