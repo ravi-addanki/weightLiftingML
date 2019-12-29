@@ -1,7 +1,9 @@
 # weightLiftingML
 Machine Learning for Weight Lifting data
 
-This repository is for analyzing weight lifting data orignated from <http://groupware.les.inf.puc-rio.br/har>. The machine learning algorithm is going to use the data and predict if the Weight Lifting Excercises are done correctly based on the new data collected. Look at the html document produced and available.
+This repository is for analyzing weight lifting data orignated from <http://groupware.les.inf.puc-rio.br/har>. The machine learning algorithm is going to use the data and predict if the Weight Lifting Excercises are done correctly based on the new data collected.
+
+Please look at the pdf document produced and available (weightLiftingML.pdf).
 
 
 Ref:
